@@ -39,10 +39,7 @@ contract RegulatedToken is ERC20, ERC20Pausable, ERC20Permit, AccessControl {
     }
 
     function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
-        if (totalSupply() + amount > cap) {
-            revert CapExceeded(totalSupply() + amount, cap);
-        }
-        _mint(to, amount);
+        _mint(to, amount); // the cap is enforced in _update, so it holds on every mint path
     }
 
     function pause() external onlyRole(PAUSER_ROLE) {
@@ -72,5 +69,10 @@ contract RegulatedToken is ERC20, ERC20Pausable, ERC20Permit, AccessControl {
         if (isBlacklisted[to]) revert AccountBlacklisted(to);
 
         super._update(from, to, value); // runs ERC20Pausable's paused check, then ERC20's actual balance update
+
+        // from == address(0) means this was a mint. The supply has already grown, so compare it to the cap.
+        if (from == address(0) && totalSupply() > cap) {
+            revert CapExceeded(totalSupply(), cap);
+        }
     }
 }
